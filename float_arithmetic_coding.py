@@ -25,10 +25,11 @@ def encode(sequence: str, dist: Distribution) -> float:
     for c in range(len(sequence)): 
         location = alphabet.index(sequence[c])
         new_start = start
+        dist_given = dist.p_given(sequence[:c])
         for i in range(location):
-            new_start += mp.mpf(dist.p(alphabet[i], sequence[:c])) * (end-start)
+            new_start += mp.mpf(dist_given[alphabet[location]]) * (end-start)
         
-        end = new_start + mp.mpf(dist.p(alphabet[location], sequence[:c])) * (end-start)
+        end = new_start + mp.mpf(dist_given[alphabet[location]]) * (end-start)
         start = new_start
 
         req_bits = -mpmath.ceil(mpmath.log(end-start, 2)) + 10
