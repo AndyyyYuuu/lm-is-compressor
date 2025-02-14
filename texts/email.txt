@@ -1,0 +1,14 @@
+Hi Mr. Teacher, 
+
+After careful consideration with my mentor, I have decided to pivot my project once again to a more research-based topic. 
+
+My mentor has told me that my previous project, the GPT from scratch, holds little educational value as the from-scratch Python implementation of the model is far behind (and far different from) industry standard methods. 
+
+There was a paper published in 2023 called "Language Modeling is Compression" that draws an equivalency between language models like ChatGPT and compression algorithms like ZIP files. My new project will be an experiment of two parts: adapting GPT into a data compression algorithm, and the reverse, adapting ZIP into a language model. 
+
+The project should require fairly little code (maybe only an additional hundred lines) but requires potentially graduate-level information theory to fully understand. My mentor has completed research in this area of study and is confident that, with his help, I can still complete this project in time. 
+
+Are there any additional actions I need to take to make this pivot? 
+
+Thanks, 
+Andy
