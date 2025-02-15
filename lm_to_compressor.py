@@ -22,7 +22,7 @@ def compress(inp, bitout):
 	
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE+1)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
-	enc = arithmeticcoding.ArithmeticEncoder(64, bitout)
+	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
 	for i in range(len(inp)):
 		enc.write(freqs, inp[i].item())
 		new_freqs = p_given(inp[:i+1], gpt2_model)
@@ -37,7 +37,7 @@ def decompress(inp, out):
 	bitin = arithmeticcoding.BitInputStream(inp)
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE+1)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
-	dec = arithmeticcoding.ArithmeticDecoder(64, bitin)
+	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
 	output = []
 	while True: 
 		# Decode and write one token
