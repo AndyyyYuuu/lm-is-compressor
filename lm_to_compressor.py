@@ -5,6 +5,7 @@ arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.a
 gpt2_model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
 gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
 ALPHABET_SIZE = 50257
+CONTEXT_LENGTH = 1024
 
 def p_given(condition, model):
 	input_ids = torch.tensor(condition).unsqueeze(0)
@@ -25,6 +26,9 @@ def compress(inp, bitout):
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
 	for i in range(len(inp)):
 		enc.write(freqs, inp[i].item())
+		context = inp[:i+1]
+		if len(context) > CONTEXT_LENGTH: 
+			context = context[len(context)-CONTEXT_LENGTH]
 		new_freqs = p_given(inp[:i+1], gpt2_model)
 		for i in range(ALPHABET_SIZE+1): 
 			freqs.set(i, new_freqs[i])
@@ -38,7 +42,7 @@ def decompress(inp, out):
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE+1)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
-	output = []
+	context = []
 	while True: 
 		# Decode and write one token
 		symbol = dec.read(freqs)
@@ -46,8 +50,10 @@ def decompress(inp, out):
 		if symbol == ALPHABET_SIZE:  # EOF
 			break
 
-		output.append(symbol)
-		new_freqs = p_given(output, gpt2_model)
+		context.append(symbol)
+		if len(context) > CONTEXT_LENGTH: 
+			context.pop(0)
+		new_freqs = p_given(context, gpt2_model)
 		for i in range(ALPHABET_SIZE+1): 
 			freqs.set(i, new_freqs[i])
 
