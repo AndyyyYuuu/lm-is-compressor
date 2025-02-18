@@ -21,48 +21,52 @@ def p_given(condition, model):
 
 
 def compress(inp, bitout):
-	inp = gpt2_tokenizer.encode(gpt2_tokenizer.bos_token+inp.decode(), return_tensors="pt")[0]
-	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE+1)
+	bos = torch.tensor([gpt2_tokenizer.bos_token_id])
+	eos = torch.tensor([gpt2_tokenizer.eos_token_id])
+	print(bos, eos)
+	inp = torch.cat((bos, gpt2_tokenizer.encode(inp.decode(), return_tensors="pt")[0], eos))
+	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	# TODO: Use BOS token instead of initial uniform distr. and EOS token instead of ALPHABET_SIZE
+	
 	# TODO: Infer from entire sequence for batch processing? 
-	for i in tqdm(range(len(inp))):
-		enc.write(freqs, inp[i].item())
-		context = inp[:i+1]
+	for i in tqdm(range(1, len(inp))):
+		
+		context = inp[:i]
 		if len(context) > CONTEXT_LENGTH: 
 			context = context[len(context)-CONTEXT_LENGTH:]
-		new_freqs = p_given(inp[:i+1], gpt2_model)
-		for i in range(ALPHABET_SIZE+1): 
-			freqs.set(i, new_freqs[i])
+		new_freqs = p_given(context, gpt2_model)
+		for j in range(ALPHABET_SIZE): 
+			freqs.set(j, new_freqs[j])
 
-	enc.write(freqs, ALPHABET_SIZE)  # EOF
+		enc.write(freqs, inp[i].item())
+
 	enc.finish()
 
 
 def decompress(inp, out):
 	bitin = arithmeticcoding.BitInputStream(inp)
-	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE+1)
+	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
-	context = []
+	context = [gpt2_tokenizer.bos_token_id]
+
 	while True: 
+		new_freqs = p_given(context, gpt2_model)
+		for i in range(ALPHABET_SIZE): 
+			freqs.set(i, new_freqs[i])
 		# Decode and write one token
 		symbol = dec.read(freqs)
-		
-		if symbol == ALPHABET_SIZE:  # EOF
+
+		if symbol == gpt2_tokenizer.eos_token_id:
 			break
 
 		context.append(symbol)
 		if len(context) > CONTEXT_LENGTH: 
 			context.pop(0)
-		new_freqs = p_given(context, gpt2_model)
-		for i in range(ALPHABET_SIZE+1): 
-			freqs.set(i, new_freqs[i])
-
+		
 		# Iterate through characters, then bits
 		for c in gpt2_tokenizer.decode(symbol): 
-			#print(bytes((ord(c),)))
 			for i in range(8):
 				out.write((ord(c) >> (7 - i)) & 1)
 
@@ -77,5 +81,5 @@ def decompress_file(input_path, output_path):
 		contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
 		decompress(inp, bitout)
 
-compress_file("texts/paper.txt", "tests/lm_output.bin")
-# decompress_file("output.bin", "restore.txt")
+compress_file("texts/email.txt", "tests/lm_output.bin")
+decompress_file("tests/lm_output.bin", "tests/restore.txt")
