@@ -28,9 +28,9 @@ def compress(inp, bitout):
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	
+
 	# TODO: Infer from entire sequence for batch processing? 
-	for i in tqdm(range(1, len(inp))):
+	for i in tqdm(range(1, len(inp)), unit=" tokens"):
 		
 		context = inp[:i]
 		if len(context) > CONTEXT_LENGTH: 
@@ -50,6 +50,7 @@ def decompress(inp, out):
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
 	context = [gpt2_tokenizer.bos_token_id]
+	tokens_count = 0
 
 	while True: 
 		new_freqs = p_given(context, gpt2_model)
@@ -69,6 +70,10 @@ def decompress(inp, out):
 		for c in gpt2_tokenizer.decode(symbol): 
 			for i in range(8):
 				out.write((ord(c) >> (7 - i)) & 1)
+		
+		tokens_count += 1
+		print(f"Decompressed {tokens_count} tokens\r", end="")
+	print(f"Finished decompressing {tokens_count} tokens")
 
 
 def compress_file(input_path, output_path): 
@@ -81,5 +86,5 @@ def decompress_file(input_path, output_path):
 		contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
 		decompress(inp, bitout)
 
-compress_file("texts/email.txt", "tests/lm_output.bin")
+compress_file("texts/sentence.txt", "tests/lm_output.bin")
 decompress_file("tests/lm_output.bin", "tests/restore.txt")
