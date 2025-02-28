@@ -14,7 +14,7 @@ CONTEXT_LENGTH = 1024
 SCALING_FACTOR = 10000
 
 def p_given(condition, model):
-	input_ids = torch.tensor(condition).unsqueeze(0)
+	input_ids = condition.unsqueeze(0)
 	with torch.no_grad():
 		outputs = model(input_ids, labels=input_ids)
 	
@@ -27,7 +27,7 @@ def p_given(condition, model):
 def batch_p_given(condition, model):
 	# Condition is a tensor of shape (sequence length, )
 	
-	input_ids = torch.tensor(condition).unsqueeze(0)
+	input_ids = condition.unsqueeze(0)
 
 	with torch.no_grad():
 		outputs = model(input_ids)
