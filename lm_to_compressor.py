@@ -1,4 +1,4 @@
-import transformers, torch, contextlib, importlib, math
+import transformers, torch, contextlib, importlib, math, os, re, shutil
 from tqdm import tqdm
 
 arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.arithmeticcoding")
@@ -12,7 +12,7 @@ gpt2_model.eval()
 ALPHABET_SIZE = 50257
 CONTEXT_LENGTH = 1024
 SCALING_FACTOR = 10000
-
+CHUNK_SIZE = 2048
 def p_given(condition, model):
 	input_ids = condition.unsqueeze(0)
 	with torch.no_grad():
@@ -39,12 +39,12 @@ def batch_p_given(condition, model):
 	return torch.ceil(freqs).to(torch.int)
 
 
-def compress(inp, bitout):
+def compress(inp: str, bitout):
 	# TODO: Process in chunks
 	bos = torch.tensor([gpt2_tokenizer.bos_token_id])
 	eos = torch.tensor([gpt2_tokenizer.eos_token_id])
 	print(bos, eos)
-	inp = torch.cat((bos, gpt2_tokenizer.encode(inp.decode(), return_tensors="pt")[0], eos))
+	inp = torch.cat((bos, gpt2_tokenizer.encode(inp, return_tensors="pt")[0], eos))
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
@@ -100,14 +100,25 @@ def decompress(inp, out):
 
 
 def compress_file(input_path, output_path): 
-	with open(input_path, "rb") as inp, \
-		contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
-		compress(inp.read(), bitout)
+	with open(input_path, "rb") as inp:
+		txt = inp.read().decode("utf-8")
+		chunks = [txt[i:i+CHUNK_SIZE] for i in range(0, len(txt), CHUNK_SIZE)]
+		if os.path.exists(output_path):
+			shutil.rmtree(output_path)
+		os.makedirs(output_path)
+
+		for i, chunk in enumerate(chunks):
+			with contextlib.closing(arithmeticcoding.BitOutputStream(open(os.path.join(output_path, f"{i}.bin"), "wb"))) as bitout:
+				compress(chunk, bitout)
+
 
 def decompress_file(input_path, output_path): 
-	with open(input_path, "rb") as inp, \
-		contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
-		decompress(inp, bitout)
+	with contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
+		files = [f for f in os.listdir(input_path) if f.endswith(".bin")]
+		files.sort(key=lambda x: int(re.search(r"(\d+)", x).group()))
+		for file in files:
+			with open(os.path.join(input_path, file), "rb") as inp:
+				decompress(inp, bitout)
 
-compress_file("texts/paper.txt", "tests/lm_output_2.bin")
-decompress_file("tests/lm_output_2.bin", "tests/restore.txt")
+compress_file("texts/article.txt", "tests/lm_output.bins")
+decompress_file("tests/lm_output.bins", "tests/restore.txt")
