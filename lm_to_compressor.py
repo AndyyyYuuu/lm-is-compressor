@@ -63,7 +63,7 @@ def compress(inp: str, bitout):
 
 	enc.finish()
 
-def decompress(inp, out):
+def decompress(inp, inp_length, out):
 	bitin = arithmeticcoding.BitInputStream(inp)
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
@@ -72,36 +72,37 @@ def decompress(inp, out):
 	last_token = gpt2_tokenizer.bos_token_id
 	tokens_count = 0
 	kv_cache = None
+	info_content = 0
+	with tqdm(total=inp_length, unit=" bits") as progress:
+		while True: 
+			new_freqs, kv_cache = p_given(torch.tensor([last_token]), gpt2_model, kv_cache)
 
-	while True: 
-		new_freqs, kv_cache = p_given(torch.tensor([last_token]), gpt2_model, kv_cache)
+			for i in range(ALPHABET_SIZE): 
+				freqs.set(i, int(new_freqs[i]))
+			# Decode and write one token
+			symbol = dec.read(freqs)
 
-		for i in range(ALPHABET_SIZE): 
-			freqs.set(i, int(new_freqs[i]))
-		# Decode and write one token
-		symbol = dec.read(freqs)
-
-		# TODO: Use more robust stopping condition
-		# Get cross entropy of the entire sequence by summing the cross entropy of each token
-		# Cross entropy of each token is -log2(prob of the token)
-		# When ceil(Cross entropy) > code length, stop
-		if symbol == gpt2_tokenizer.eos_token_id:
-			break
-
-		
-		last_token = symbol
-		context.append(symbol)
-		if len(context) > CONTEXT_LENGTH: 
-			context.pop(0)
-		
-		# Iterate through characters, then bits
-		for c in gpt2_tokenizer.decode(symbol): 
-			for i in range(8):
-				out.write((ord(c) >> (7 - i)) & 1)
-		out.output.flush()
-		tokens_count += 1
-		print(f"\rDecompressed {tokens_count} tokens", end="")
-	print(f"\rFinished decompressing {tokens_count} tokens")
+			# Get info content of the entire sequence by summing the info content of each token
+			# Info content of each token is -log2(prob of the token)
+			# When ceil(info content) > code length, stop
+			last_info_content = info_content
+			info_content += -math.log2(new_freqs[symbol]/new_freqs.sum())
+			if math.ceil(info_content) > inp_length:
+				break
+			
+			progress.update(math.ceil(info_content) - math.ceil(last_info_content))
+			
+			last_token = symbol
+			context.append(symbol)
+			if len(context) > CONTEXT_LENGTH: 
+				context.pop(0)
+			
+			# Iterate through characters, then bits
+			for c in gpt2_tokenizer.decode(symbol): 
+				for i in range(8):
+					out.write((ord(c) >> (7 - i)) & 1)
+			out.output.flush()
+			tokens_count += 1
 
 
 def compress_file(input_path, output_path): 
@@ -123,10 +124,10 @@ def decompress_file(input_path, output_path):
 		files.sort(key=lambda x: int(re.search(r"(\d+)", x).group()))
 		for file in files:
 			with open(os.path.join(input_path, file), "rb") as inp:
-				decompress(inp, bitout)
+				inp_length = os.path.getsize(os.path.join(input_path, file)) * 8
+				decompress(inp, inp_length, bitout)
 
-
-compress_file("texts/email.txt", "tests/lm_output.bins")
+compress_file("texts/sentence.txt", "tests/lm_output.bins")
 start = time.time()
 decompress_file("tests/lm_output.bins", "tests/restore.txt")
 end = time.time()
