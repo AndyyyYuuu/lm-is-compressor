@@ -1,4 +1,4 @@
-import transformers, torch, contextlib, importlib, math, os, re, shutil
+import transformers, torch, contextlib, importlib, math, os, re, shutil, time
 from tqdm import tqdm
 
 arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.arithmeticcoding")
@@ -13,16 +13,18 @@ ALPHABET_SIZE = 50257
 CONTEXT_LENGTH = 1024
 SCALING_FACTOR = 10000
 CHUNK_SIZE = 2048
-def p_given(condition, model):
-	input_ids = condition.unsqueeze(0)
+
+def p_given(input_id, model, kv_cache=None):
+	input_id = input_id.unsqueeze(0)
 	with torch.no_grad():
-		outputs = model(input_ids, labels=input_ids)
+		outputs = model(input_id, past_key_values=kv_cache, use_cache=True)
+		kv_cache = outputs.past_key_values
 	
 	token_log_prob = torch.log_softmax(outputs.logits[0, -1], dim=-1)
 	
 	prob = torch.exp(token_log_prob)
 	freqs = prob * SCALING_FACTOR
-	return torch.ceil(freqs).to(torch.int)
+	return torch.ceil(freqs).to(torch.int), kv_cache
 
 def batch_p_given(condition, model):
 	# Condition is a tensor of shape (sequence length, )
@@ -67,12 +69,13 @@ def decompress(inp, out):
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
 	context = [gpt2_tokenizer.bos_token_id]
+	last_token = gpt2_tokenizer.bos_token_id
 	tokens_count = 0
+	kv_cache = None
 
 	while True: 
-		#new_freqs = p_given(context, gpt2_model)
-		# TODO: KV cache
-		new_freqs = batch_p_given(torch.tensor(context), gpt2_model)[-1]
+		new_freqs, kv_cache = p_given(torch.tensor([last_token]), gpt2_model, kv_cache)
+
 		for i in range(ALPHABET_SIZE): 
 			freqs.set(i, int(new_freqs[i]))
 		# Decode and write one token
@@ -85,6 +88,8 @@ def decompress(inp, out):
 		if symbol == gpt2_tokenizer.eos_token_id:
 			break
 
+		
+		last_token = symbol
 		context.append(symbol)
 		if len(context) > CONTEXT_LENGTH: 
 			context.pop(0)
@@ -120,5 +125,9 @@ def decompress_file(input_path, output_path):
 			with open(os.path.join(input_path, file), "rb") as inp:
 				decompress(inp, bitout)
 
-compress_file("texts/article.txt", "tests/lm_output.bins")
+
+compress_file("texts/email.txt", "tests/lm_output.bins")
+start = time.time()
 decompress_file("tests/lm_output.bins", "tests/restore.txt")
+end = time.time()
+print(f"Time taken: {end - start} seconds")
