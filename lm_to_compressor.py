@@ -1,4 +1,4 @@
-import transformers, torch, contextlib, importlib, math, os, re, shutil, time
+import transformers, torch, contextlib, importlib, math, os, re, shutil, time, argparse
 from tqdm import tqdm
 
 arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.arithmeticcoding")
@@ -127,8 +127,18 @@ def decompress_file(input_path, output_path):
 				inp_length = os.path.getsize(os.path.join(input_path, file)) * 8
 				decompress(inp, inp_length, bitout)
 
-compress_file("texts/sentence.txt", "tests/lm_output.bins")
-start = time.time()
-decompress_file("tests/lm_output.bins", "tests/restore.txt")
-end = time.time()
-print(f"Time taken: {end - start} seconds")
+def main():
+	parser = argparse.ArgumentParser(description="Compress or decompress files.")
+	parser.add_argument("-c", "--compress", action="store_true", help="Compress a file.")
+	parser.add_argument("-d", "--decompress", action="store_true", help="Decompress a file.")
+	parser.add_argument("input", help="The input file to compress or decompress.")
+	parser.add_argument("output", help="The output file to save compressed or decompressed data.")
+	args = parser.parse_args()
+
+	if args.compress:
+		compress_file(args.input, args.output)
+	elif args.decompress:
+		decompress_file(args.input, args.output)
+
+if __name__ == "__main__":
+	main()
