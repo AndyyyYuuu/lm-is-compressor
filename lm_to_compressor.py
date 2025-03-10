@@ -44,9 +44,7 @@ def batch_p_given(condition, model):
 def compress(inp: str, bitout):
 	# TODO: Process in chunks
 	bos = torch.tensor([gpt2_tokenizer.bos_token_id])
-	eos = torch.tensor([gpt2_tokenizer.eos_token_id])
-	print(bos, eos)
-	inp = torch.cat((bos, gpt2_tokenizer.encode(inp, return_tensors="pt")[0], eos))
+	inp = torch.cat((bos, gpt2_tokenizer.encode(inp, return_tensors="pt")[0]))
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
