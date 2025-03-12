@@ -10,7 +10,6 @@ gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
 gpt2_model.eval()
 
 ALPHABET_SIZE = 50257
-CONTEXT_LENGTH = 1024
 SCALING_FACTOR = 10000
 CHUNK_SIZE = 2048
 
@@ -48,11 +47,9 @@ def compress(inp: str, bitout):
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	print("Computing probabilities ...", end="", flush=True)
 	dists = batch_p_given(inp, gpt2_model)
-	print("\r\033[KProbabilities computed!", flush=True)
 
-	for i in tqdm(range(1, len(inp)), unit=" tokens"):
+	for i in tqdm(range(1, len(inp)), unit=" tokens", leave=False):
 		new_freqs = dists[i-1]
 		for j in range(ALPHABET_SIZE): 
 			freqs.set(j, int(new_freqs[j].item()))
@@ -66,12 +63,11 @@ def decompress(inp, inp_length, out):
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
-	context = [gpt2_tokenizer.bos_token_id]
 	last_token = gpt2_tokenizer.bos_token_id
 	tokens_count = 0
 	kv_cache = None
 	info_content = 0
-	with tqdm(total=inp_length, unit=" bits") as progress:
+	with tqdm(total=inp_length, unit=" bits", leave=False) as progress:
 		while True: 
 			new_freqs, kv_cache = p_given(torch.tensor([last_token]), gpt2_model, kv_cache)
 
@@ -91,9 +87,6 @@ def decompress(inp, inp_length, out):
 			progress.update(math.ceil(info_content) - math.ceil(last_info_content))
 			
 			last_token = symbol
-			context.append(symbol)
-			if len(context) > CONTEXT_LENGTH: 
-				context.pop(0)
 			
 			# Iterate through characters, then bits
 			for c in gpt2_tokenizer.decode(symbol): 
@@ -110,8 +103,7 @@ def compress_file(input_path, output_path):
 		if os.path.exists(output_path):
 			shutil.rmtree(output_path)
 		os.makedirs(output_path)
-
-		for i, chunk in enumerate(chunks):
+		for i, chunk in enumerate(tqdm(chunks, unit=" chunks")):
 			with contextlib.closing(arithmeticcoding.BitOutputStream(open(os.path.join(output_path, f"{i}.bin"), "wb"))) as bitout:
 				compress(chunk, bitout)
 
@@ -120,7 +112,7 @@ def decompress_file(input_path, output_path):
 	with contextlib.closing(arithmeticcoding.BitOutputStream(open(output_path, "wb"))) as bitout:
 		files = [f for f in os.listdir(input_path) if f.endswith(".bin")]
 		files.sort(key=lambda x: int(re.search(r"(\d+)", x).group()))
-		for file in files:
+		for file in tqdm(files, total=len(files), unit=" chunks"):
 			with open(os.path.join(input_path, file), "rb") as inp:
 				inp_length = os.path.getsize(os.path.join(input_path, file)) * 8
 				decompress(inp, inp_length, bitout)
