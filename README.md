@@ -41,13 +41,13 @@ python3 lm_to_compressor.py --decompress {code path} {output text path}
 ---
 ## Theoretical Foundation
 
-Before explaining data compression, we must first explain our measure of information. i.e. How much of a text file is redundant, compressible data, and how much of it is essential? 
+Before explaining data compression, we must first explain our measure of information. i.e. How much of a text file is redundant, compressible data, and how much of it is essential. 
 
-**Shannon entropy**, or expected information content, of a distribution is given when you take the expected value of all the information contents of the events possible. 
+**Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents of possible events. 
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
-Shannon entropy defines the theoretical lower bound of the size of your compressed file. 
+Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes, but LLM tokens in this project). In otherwords, $$H(P) \times input \space file \space length \leq expected \space output \space file \space size$$
 
 Unfortunately, when it comes to compressing English text, we cannot know the true distribution $$p$$ of every possible sentence. Instead, we might use a distribution $$P_\theta$$ as a way to estimate $$P$$. We can update the lower bound for the length of our compressed file to the following, known as cross-entropy: 
 
@@ -55,13 +55,19 @@ $$H(P, P_\theta) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
 
 If we were to compress a file efficiently, we need to minimize the length of our output file and hence the value of cross-entropy $$H(P, P_\theta)$$. 
 
-It also happens that cross-entropy is precisely the metric that is minimized in the pre-training process of modern Transformer language models. In that scenario, $$P_\theta$$ becomes our language model, which, as a result of optimization, is already in a state to minimize cross-entropy and thus the lower bound of the output code length. In other words, the more accurate a large language model is, the lower its cross-entropy, leading to tighter compression rates. 
+It also happens that cross-entropy is precisely the metric that is minimized in the pre-training process of modern Transformer language models. In that scenario, $$P_\theta$$ becomes our language model, which, as a result of optimization, is already in a state to minimize cross-entropy and thus the lower bound of the output code length. In other words, the more accurate a large language model is, the more effectively it compresses text. 
 
 ---
 ## Implementation
 The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
 
 ### Arithmetic Coding
+
+The code length of arithmetic coding is exactly 
+
+$$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
+
+where $$P_i(x)$$ is the conditional probability of token $$i$$ given by the language model. 
 
 ### Language Model
 This project uses GPT-2 from `huggingface` to run its compressor. 
@@ -86,7 +92,7 @@ These experiments on my data compressor were run using the files in [`texts`](te
 ### Compression Rate for Natural Language
 I tested the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code. 
 
-<img width="700" alt="negative_log_2_prob" src="https://github.com/user-attachments/assets/003f919c-035e-40c1-9218-d2d3c0915a1c" />
+<img width="500" alt="Compression Rates on Various Natural Language Texts" src="https://github.com/user-attachments/assets/54a26c37-3243-4a08-8abd-a19d9800f5aa" />
 
 The x-axis of the graph represents the compression rate of the compressor on various files (compression rate is compressed file size / uncompressed file size). 
 From the graph, we see that compression rate is around 20% for large text files. This means that the compressor is able to reduce english text files to one-fifth of their original size. The large compression rate of `sentence.txt` is likely due to decreased language modeling accuracy as a result of the small amount of context. 
@@ -94,7 +100,6 @@ From the graph, we see that compression rate is around 20% for large text files.
 ### Comparison With Other Methods & Models
 
 ![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/a82f7044-788e-4ab5-9b63-c028c9e064fc)
-
 
 For the natural language files in [`texts`](texts), GPT-2 arithmetic coding consistently outperforms ZIP in compression rate. It also outperforms the use of weaker models for arithmetic coding, providing evidence for our theoretical proof that a better language model does indeed correspond to a better text compressor. 
 
@@ -104,7 +109,7 @@ I notice that the compression rate of ZIP seems to decrease as file size increas
 ## Credits
 
 - Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his mentorship and guidance throughout this project. 
-- This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) as a submodule to perform arithmetic coding.
+- This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
 
 ---
 ## Further Reading
