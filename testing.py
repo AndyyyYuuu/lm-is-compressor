@@ -1,7 +1,13 @@
-import wandb, subprocess, os
+import subprocess, os
 
-TEXT = "paper"
+TEXT = "email"
 DO_WANDB = True
+
+if DO_WANDB: 
+    try: 
+        import wandb
+    except ImportError: 
+        DO_WANDB = False
 
 def compress_rate(inp: str): 
     out_path = "tests/lm_output.bins"
@@ -12,18 +18,16 @@ def compress_rate(inp: str):
     if DO_WANDB: wandb.log({"input_size": in_size, "output_size": out_size, "compression_rate": out_size/in_size})
     return out_size / in_size
 
-
-
 if DO_WANDB: 
     run = wandb.init(
         entity="andy-and-only-andy",
         project="lm-data-compressor",
         config={
-            "notes": f"Decompress {TEXT}"
-            
+            "input": TEXT,
+            "notes": ""
         },
     )
     
 
 rate = compress_rate(f"texts/{TEXT}.txt")
-print(rate)
+print("Compression rate:": rate)
