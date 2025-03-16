@@ -5,9 +5,9 @@ arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.a
 
 torch.set_default_dtype(torch.float64)
 
-gpt2_model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
-gpt2_tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
-gpt2_model.eval()
+model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
+tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
+model.eval()
 
 ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
@@ -33,21 +33,23 @@ def batch_p_given(condition, model):
 	with torch.no_grad():
 		outputs = model(input_ids)
 	
-	token_log_prob = torch.log_softmax(outputs.logits.squeeze(0), dim=-1)
-
-	prob = torch.exp(token_log_prob)
+	prob = torch.softmax(outputs.logits.squeeze(0), dim=-1)
 	freqs = prob * SCALING_FACTOR
 	return torch.ceil(freqs).to(torch.int)
+
+def flat_p(condition):
+	return torch.ones(len(condition), ALPHABET_SIZE)
 
 
 def compress(inp: str, bitout):
 	# TODO: Process in chunks
-	bos = torch.tensor([gpt2_tokenizer.bos_token_id])
-	inp = torch.cat((bos, gpt2_tokenizer.encode(inp, return_tensors="pt")[0]))
+	bos = torch.tensor([tokenizer.bos_token_id])
+	inp = torch.cat((bos, tokenizer.encode(inp, return_tensors="pt")[0]))
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	dists = batch_p_given(inp, gpt2_model)
+	#dists = batch_p_given(inp, model)
+	dists = flat_p(inp)
 
 	for i in tqdm(range(1, len(inp)), unit=" tokens", leave=False):
 		new_freqs = dists[i-1]
@@ -63,13 +65,13 @@ def decompress(inp, inp_length, out):
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
-	last_token = gpt2_tokenizer.bos_token_id
+	last_token = tokenizer.bos_token_id
 	tokens_count = 0
 	kv_cache = None
 	info_content = 0
 	with tqdm(total=inp_length, unit=" bits", leave=False) as progress:
 		while True: 
-			new_freqs, kv_cache = p_given(torch.tensor([last_token]), gpt2_model, kv_cache)
+			new_freqs, kv_cache = p_given(torch.tensor([last_token]), model, kv_cache)
 
 			for i in range(ALPHABET_SIZE): 
 				freqs.set(i, int(new_freqs[i]))
@@ -89,7 +91,7 @@ def decompress(inp, inp_length, out):
 			last_token = symbol
 			
 			# Iterate through characters, then bits
-			for c in gpt2_tokenizer.decode(symbol): 
+			for c in tokenizer.decode(symbol): 
 				for i in range(8):
 					out.write((ord(c) >> (7 - i)) & 1)
 			out.output.flush()
