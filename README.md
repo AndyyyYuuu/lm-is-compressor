@@ -1,6 +1,6 @@
 # Language Model-Based Text Compressor
 
-This repository is a demonstration of using a language model to perform lossless compression on natural langage. Whether you're a novice programmer or experienced computer scientists, I hope you'll find this experiment interesting/informative. 
+This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of a text compression algorithm, albeit extremely slow to run, can achieve a compression rate of around 20% on English natural language. Whether you're a novice programmer or experienced computer scientists, I hope you'll find this experiment interesting/informative. 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -13,7 +13,8 @@ This repository is a demonstration of using a language model to perform lossless
 ## Run the Experiment
 ### Prerequisites
 - Python 3.11.1
-- Required packages: `torch`, `transformers`
+- Required packages: `torch`, `transformers`, `tqdm`
+- Optional package: `wandb`
 
 ### Setup
 1: Clone repository
@@ -39,14 +40,21 @@ python3 lm_to_compressor.py --decompress {code path} {output text path}
 ---
 ## Experimental Results
 I used [Weights & Biases](wandb.org) to log and create graphs for my results. 
-### Compression Rates
+### Compression Rate for Natural Language
 I tested the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code and [`texts`](texts) for the text files used. 
 
 <img width="700" alt="negative_log_2_prob" src="https://github.com/user-attachments/assets/003f919c-035e-40c1-9218-d2d3c0915a1c" />
 
 The x-axis of the graph represents the compression rate of the compressor on various files (compression rate is compressed file size / uncompressed file size). 
-From the graph, we see that compression rate is around 20% for large text files. This means that the compressor is able to reduce english text files to one-fifth of their original size. 
-### Comparison to Other Methods
+From the graph, we see that compression rate is around 20% for large text files. This means that the compressor is able to reduce english text files to one-fifth of their original size. The large compression rate of `sentence.txt` is likely due to decreased language modeling accuracy as a result of the small amount of context. 
+
+### Comparison With Other Methods & Models
+
+![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/09718961-ddbf-4357-b4d0-5c7ff446c912)
+
+For the natural language files in [`texts`](texts), GPT-2 arithmetic coding consistently outperforms ZIP in compression rate. It also outperforms the use of weaker models for arithmetic coding, providing evidence for our theoretical proof that a better language model does indeed correspond to a better text compressor. 
+
+I notice, however, that the compression rate of ZIP seems to decrease as file size increases. I will run further tests on larger files. 
 
 ---
 ## Theoretical Foundation
@@ -75,7 +83,11 @@ This project uses GPT-2 from `huggingface` to run its compressor.
 ### Chunk Processing
 
 ### KV-Caching
-KV-caching was used to accelerate language model inference. Given a chunk size of 2048 characters (amounting to around 400-500 tokens for typical text), the addition of KV-caching can decrease inference time by around 80%. 
+KV-caching was used to accelerate language model inference. 
+
+In a transformer, the three numbers key (K), query (Q), and value (V) are computed for each input token. K and V are 
+
+Given a chunk size of 2048 characters (amounting to around 400-500 GPT-2 tokens for typical text), the addition of KV-caching can decrease inference time by around 80%. 
 
 <img width="700" alt="kv_cache_effects" src="https://github.com/user-attachments/assets/c13198ae-22db-4f3d-8048-a8e56f8cf720" />
 
@@ -88,11 +100,8 @@ As seen from the graph, the algorithm without KV-caching experiences a linear in
 - This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) as a submodule to perform arithmetic coding.
 ---
 ## Further Reading
-#### Papers on this topic
 - **[Language Modeling is Compression](https://arxiv.org/abs/2309.10668) by Delétang et al.**  
   - Experiments with the use of language models in text, image, and audio compression through similar methods as the ones used in this repository. Also shows that a compressor can be used to build a conditional generative model. 
-
-#### Information theory
 - **[The Mathematical Theory of Communication](https://pure.mpg.de/rest/items/item_2383164_3/component/file_2383163/content) by Claude E. Shannon and Warren Weaver**
   - Recommend reading Warren Weaver's overview of Shannon's theory. 
 - **[Elements of Information Theory](https://cs-114.org/wp-content/uploads/2015/01/Elements_of_Information_Theory_Elements.pdf) by Joy A. Thomas and Thomas M. Cover**
