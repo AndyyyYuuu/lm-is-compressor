@@ -4,9 +4,9 @@ This repository is a demonstration of using a language model to perform lossless
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
-> 2. [Experimental Results](#experimental-results)
-> 3. [Theoretical Foundation](#theoretical-foundation)
-> 4. [Implementation](#implementation)
+> 2. [Theoretical Foundation](#theoretical-foundation)
+> 3. [Implementation](#implementation)
+> 4. [Experimental Results](#experimental-results)
 > 5. [Credits](#credits)
 > 6. [Further Reading](#further-reading)
 ---
@@ -37,24 +37,6 @@ Run a decompression experiment:
 ```bash
 python3 lm_to_compressor.py --decompress {code path} {output text path}
 ```
----
-## Experimental Results
-I used [Weights & Biases](wandb.org) to log and create graphs for my results. 
-### Compression Rate for Natural Language
-I tested the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code and [`texts`](texts) for the text files used. 
-
-<img width="700" alt="negative_log_2_prob" src="https://github.com/user-attachments/assets/003f919c-035e-40c1-9218-d2d3c0915a1c" />
-
-The x-axis of the graph represents the compression rate of the compressor on various files (compression rate is compressed file size / uncompressed file size). 
-From the graph, we see that compression rate is around 20% for large text files. This means that the compressor is able to reduce english text files to one-fifth of their original size. The large compression rate of `sentence.txt` is likely due to decreased language modeling accuracy as a result of the small amount of context. 
-
-### Comparison With Other Methods & Models
-
-![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/09718961-ddbf-4357-b4d0-5c7ff446c912)
-
-For the natural language files in [`texts`](texts), GPT-2 arithmetic coding consistently outperforms ZIP in compression rate. It also outperforms the use of weaker models for arithmetic coding, providing evidence for our theoretical proof that a better language model does indeed correspond to a better text compressor. 
-
-I notice, however, that the compression rate of ZIP seems to decrease as file size increases. I will run further tests on larger files. 
 
 ---
 ## Theoretical Foundation
@@ -69,7 +51,7 @@ Shannon entropy defines the theoretical lower bound of the size of your compress
 
 Unfortunately, when it comes to compressing English text, we cannot know the true distribution $$p$$ of every possible sentence. Instead, we might use a distribution $$P_\theta$$ as a way to estimate $$P$$. We can update the lower bound for the length of our compressed file to the following, known as cross-entropy: 
 
-$$H(P, \hat{P}) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
+$$H(P, P_\theta) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
 
 If we were to compress a file efficiently, we need to minimize the length of our output file and hence the value of cross-entropy $$H(P, P_\theta)$$. 
 
@@ -77,27 +59,53 @@ It also happens that cross-entropy is precisely the metric that is minimized in 
 
 ---
 ## Implementation
+The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
+
 ### Arithmetic Coding
+
 ### Language Model
 This project uses GPT-2 from `huggingface` to run its compressor. 
+
 ### Chunk Processing
+GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 2048 characters (amounting to 400-500 tokens for natural language) and compressed them individually. While attempting to create chunks of exactly 1024 tokens 
 
 ### KV-Caching
 KV-caching was used to accelerate language model inference. 
 
 In a transformer, the three numbers key (K), query (Q), and value (V) are computed for each input token. K and V are 
 
-Given a chunk size of 2048 characters (amounting to around 400-500 GPT-2 tokens for typical text), the addition of KV-caching can decrease inference time by around 80%. 
+Given a chunk size of 2048 characters, the addition of KV-caching can decrease inference time by around 80%. 
 
 <img width="700" alt="kv_cache_effects" src="https://github.com/user-attachments/assets/c13198ae-22db-4f3d-8048-a8e56f8cf720" />
 
 As seen from the graph, the algorithm without KV-caching experiences a linear increase in decoding time per token. The number of tokens for the language model to process increases for every additional token until the decoder moves on to the next chunk of data. On the other hand, KV-caching allows each inference to be performed in a relatively fixed amount of time. 
 
 ---
+## Experimental Results
+These experiments on my data compressor were run using the files in [`texts`](texts). I used [Weights & Biases](wandb.org) and Google Sheets to log and create graphs for my results. 
+### Compression Rate for Natural Language
+I tested the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code. 
+
+<img width="700" alt="negative_log_2_prob" src="https://github.com/user-attachments/assets/003f919c-035e-40c1-9218-d2d3c0915a1c" />
+
+The x-axis of the graph represents the compression rate of the compressor on various files (compression rate is compressed file size / uncompressed file size). 
+From the graph, we see that compression rate is around 20% for large text files. This means that the compressor is able to reduce english text files to one-fifth of their original size. The large compression rate of `sentence.txt` is likely due to decreased language modeling accuracy as a result of the small amount of context. 
+
+### Comparison With Other Methods & Models
+
+![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/a82f7044-788e-4ab5-9b63-c028c9e064fc)
+
+
+For the natural language files in [`texts`](texts), GPT-2 arithmetic coding consistently outperforms ZIP in compression rate. It also outperforms the use of weaker models for arithmetic coding, providing evidence for our theoretical proof that a better language model does indeed correspond to a better text compressor. 
+
+I notice that the compression rate of ZIP seems to decrease as file size increases. I will run further tests on larger files. 
+
+---
 ## Credits
 
-- Special thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his mentorship and guidance throughout this project. 
+- Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his mentorship and guidance throughout this project. 
 - This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) as a submodule to perform arithmetic coding.
+
 ---
 ## Further Reading
 - **[Language Modeling is Compression](https://arxiv.org/abs/2309.10668) by Delétang et al.**  
