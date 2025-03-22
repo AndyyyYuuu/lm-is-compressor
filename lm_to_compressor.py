@@ -11,7 +11,7 @@ model.eval()
 
 ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
-CHUNK_SIZE = 2048
+CHUNK_SIZE = 1023
 
 def p_given(input_id, model, kv_cache=None):
 	input_id = input_id.unsqueeze(0)
@@ -37,19 +37,15 @@ def batch_p_given(condition, model):
 	freqs = prob * SCALING_FACTOR
 	return torch.ceil(freqs).to(torch.int)
 
-def flat_p(condition):
-	return torch.ones(len(condition), ALPHABET_SIZE)
 
+def compress(inp: list[int], bitout):
 
-def compress(inp: str, bitout):
-	# TODO: Process in chunks
 	bos = torch.tensor([tokenizer.bos_token_id])
-	inp = torch.cat((bos, tokenizer.encode(inp, return_tensors="pt")[0]))
+	inp = torch.cat((bos, inp))
 	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	#dists = batch_p_given(inp, model)
-	dists = flat_p(inp)
+	dists = batch_p_given(inp, model)
 
 	for i in tqdm(range(1, len(inp)), unit=" tokens", leave=False):
 		new_freqs = dists[i-1]
@@ -100,8 +96,8 @@ def decompress(inp, inp_length, out):
 
 def compress_file(input_path, output_path): 
 	with open(input_path, "rb") as inp:
-		txt = inp.read().decode("utf-8")
-		chunks = [txt[i:i+CHUNK_SIZE] for i in range(0, len(txt), CHUNK_SIZE)]
+		tokens = tokenizer.encode(inp.read().decode("utf-8"), return_tensors="pt")[0]
+		chunks = torch.split(tokens, CHUNK_SIZE)
 		if os.path.exists(output_path):
 			shutil.rmtree(output_path)
 		os.makedirs(output_path)

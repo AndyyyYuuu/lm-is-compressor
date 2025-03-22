@@ -1,6 +1,6 @@
 import subprocess, os
 
-TEXT = "email"
+TEXT = "paper"
 DO_WANDB = True
 
 if DO_WANDB: 
@@ -24,10 +24,10 @@ if DO_WANDB:
         project="lm-data-compressor",
         config={
             "input": TEXT,
-            "notes": ""
+            "notes": "new chunking method"
         },
     )
     
 
 rate = compress_rate(f"texts/{TEXT}.txt")
-print("Compression rate:": rate)
+print("Compression rate:", rate)
