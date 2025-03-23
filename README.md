@@ -1,6 +1,6 @@
 # Language Model-Based Text Compressor
 
-This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of a text compression algorithm, albeit extremely slow to run, can achieve a compression rate of around 20% on English natural language. Whether you're a novice programmer or experienced computer scientists, I hope you'll find this experiment interesting/informative. 
+This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of around 20% on English natural language. Whether you're a novice programmer or experienced computer scientist, I hope you'll find this experiment interesting or informative (pun initially not intended). 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -63,14 +63,40 @@ The following section details the methods used to achieve the aforementioned tas
 
 ### Arithmetic Coding
 
+Arithmetic coding is employed as the base algorithm to perform text compression. This project uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
+
 Arithmetic coding works by encoding every possible combination of symbols into a single number between 0 and 1. 
 
+A simplified algorithm for arithmetic coding with conditional probabilities of each symbol is shown below: 
+```py
+def p_given(symbol: str, context: list) -> float:
+    """Not implemented. Returns P(symbol | context)."""
+
+def encode(sequence: list, alphabet: list) -> float:
+  start = 0
+  end = 1
+  
+  for c in range(len(sequence)): 
+      location = alphabet.index(sequence[c])
+      new_start = start
+
+      for i in range(location):
+          new_start += p_given(alphabet[i], sequence[:c]) * (end-start)
+      
+      end = new_start + p_given(alphabet[location], sequence[:c]) * (end-start)
+      start = new_start
+  return (start + end) / 2
+```
+
+The above algorithm is heavily constrained by the precision of Python floats. [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) overcomes this by using Python integer types as representations of floats. Wondrously, Python `int`s have functionally no upper limit. 
 
 The code length of arithmetic coding is exactly 
 
 $$\lceil -\sum_i^{\#d}{log_2{P_i(x)}} \rceil$$
 
 where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
+
+
 
 ### Language Model
 
