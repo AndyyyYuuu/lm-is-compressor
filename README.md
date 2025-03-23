@@ -47,15 +47,15 @@ Before explaining data compression, we must first explain our measure of informa
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
-Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes, but LLM tokens in this project). In otherwords, $$H(P) \times input \space file \space length \leq expected \space output \space file \space size$$
+Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes, but LLM tokens in this project). In otherwords, $H(P) \times input \space file \space length \leq expected \space output \space file \space size$. 
 
-Unfortunately, when it comes to compressing English text, we cannot know the true distribution $$p$$ of every possible sentence. Instead, we might use a distribution $$P_\theta$$ as a way to estimate $$P$$. We can update the lower bound for the length of our compressed file to the following, known as cross-entropy: 
+Unfortunately, when it comes to compressing English text, we cannot know the true distribution $p$ of every possible sentence. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as cross-entropy: 
 
 $$H(P, P_\theta) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
 
-If we were to compress a file efficiently, we need to minimize the length of our output file and hence the value of cross-entropy $$H(P, P_\theta)$$. 
+If we were to compress a file efficiently, we need to minimize the length of our output file and hence the value of cross-entropy $H(P, P_\theta)$. 
 
-It also happens that cross-entropy is precisely the metric that is minimized in the pre-training process of modern Transformer language models. In that scenario, $$P_\theta$$ becomes our language model, which, as a result of optimization, is already in a state to minimize cross-entropy and thus the lower bound of the output code length. In other words, the more accurate a large language model is, the more effectively it compresses text. 
+It also happens that cross-entropy is precisely the metric that is minimized in the pre-training process of modern Transformer language models. In that scenario, $P_\theta$ becomes our language model, which, as a result of optimization, is already in a state to minimize cross-entropy and thus the lower bound of the output code length. In other words, the more accurate a large language model is, the more effectively it compresses text. 
 
 ---
 ## Implementation
@@ -63,17 +63,29 @@ The following section details the methods used to achieve the aforementioned tas
 
 ### Arithmetic Coding
 
+Arithmetic coding works by encoding every possible combination of symbols into a single number between 0 and 1. 
+
+
 The code length of arithmetic coding is exactly 
 
-$$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
+$$\lceil -\sum_i^{\#d}{log_2{P_i(x)}} \rceil$$
 
-where $$P_i(x)$$ is the conditional probability of token $$i$$ given by the language model. 
+where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
 
 ### Language Model
-This project uses GPT-2 from `huggingface` to run its compressor. 
+
+This project uses [GPT-2 from `huggingface`](https://huggingface.co/openai-community/gpt2) to run its compressor. 
+
+
+
+In the source code, the distributions of possible next tokens are computed for every token simultaneously by inputting the entire string into the LLM. 
 
 ### Chunk Processing
-GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 2048 characters (amounting to 400-500 tokens for natural language) and compressed them individually. While attempting to create chunks of exactly 1024 tokens 
+GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 1023 tokens, one less than 1024 to make space for an extra `<|endoftext|>` token before each chunk. Each compressed chunk is placed in a `.bin` file inside a folder representing a compressed file. 
+
+While the splitting of input text definitely decreases the capabilities of the language model by limiting its context, 
+
+An alternative solution would have been to implement a 1024-token moving window, ensuring the LLM always has 1024 tokens of context to work with. Unfortunately, the aforementioned batch inference would not have been possible with this solution. 
 
 ### KV-Caching
 KV-caching was used to accelerate language model inference. 
@@ -110,6 +122,7 @@ I notice that the compression rate of ZIP seems to decrease as file size increas
 
 - Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his mentorship and guidance throughout this project. 
 - This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
+- This repository uses [GPT-2](https://huggingface.co/openai-community/gpt2) from Hugging Face. The model was originally introduced in "[Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)" by Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. 
 
 ---
 ## Further Reading
