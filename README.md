@@ -5,10 +5,11 @@ This repository is a demonstration of using a language model to perform lossless
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
 > 2. [Theoretical Foundation](#theoretical-foundation)
-> 3. [Implementation](#implementation)
-> 4. [Experimental Results](#experimental-results)
-> 5. [Credits](#credits)
-> 6. [Further Reading](#further-reading)
+> 3. [Arithmetic Coding](#arithmetic-coding)
+> 4. [Implementation](#implementation)
+> 5. [Experimental Results](#experimental-results)
+> 6. [Credits](#credits)
+> 7. [Further Reading](#further-reading)
 ---
 ## Run the Experiment
 ### Prerequisites
@@ -58,16 +59,20 @@ If we were to compress a file efficiently, we need to minimize the length of our
 It also happens that cross-entropy is precisely the metric that is minimized in the pre-training process of modern Transformer language models. In that scenario, $P_\theta$ becomes our language model, which, as a result of optimization, is already in a state to minimize cross-entropy and thus the lower bound of the output code length. In other words, the more accurate a large language model is, the more effectively it compresses text. 
 
 ---
-## Implementation
-The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
 
-### Arithmetic Coding
+# Arithmetic Coding
 
-Arithmetic coding is employed as the base algorithm to perform text compression. This project uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
+Arithmetic coding is employed as the base algorithm to perform text compression. 
 
-Arithmetic coding works by encoding every possible combination of symbols into a single number between 0 and 1. 
+Arithmetic coding works by mapping every possible sequence of symbols onto the number line between 0 and 1. We can thus use a single float to represent any sequence as a whole. Arithmetic coding divides the number line into a segment for each possible value of symbol 1. These divisions are further subdivided to encode symbol 2, and so on. 
 
-A simplified algorithm for arithmetic coding with conditional probabilities of each symbol is shown below: 
+<img width="855" alt="Arithmetic coding space with uniform distribution" src="https://github.com/user-attachments/assets/7fb9280c-1f78-4705-9430-b94ed2fc3a79" />
+
+This diagram shows an arithmetic coding algorithm with three symbols: "Hello", "world", and "!". The black bars at the bottom represent the intervals on the number line that encode each of the specified messages. 
+
+<img width="855" alt="Arithmetic coding space with conditional distributions" src="https://github.com/user-attachments/assets/97b89225-4bf5-479e-b9c9-eadeba85595d" />
+
+A simplified algorithm for arithmetic coding with conditional probabilities of each symbol is shown below. The loop encodes a list of items sequentially, narrowing down the interval until it is small enough to uniquely represent the string. 
 ```py
 def p_given(symbol: str, context: list) -> float:
     """Not implemented. Returns P(symbol | context)."""
@@ -88,15 +93,18 @@ def encode(sequence: list, alphabet: list) -> float:
   return (start + end) / 2
 ```
 
-The above algorithm is heavily constrained by the precision of Python floats. [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) overcomes this by using Python integer types as representations of floats. Wondrously, Python `int`s have functionally no upper limit. 
-
 The code length of arithmetic coding is exactly 
 
-$$\lceil -\sum_i^{\#d}{log_2{P_i(x)}} \rceil$$
+$$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
 
 where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
 
+## Implementation
+The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
 
+### Arithmetic Coding
+
+This project uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding. The above algorithm is heavily constrained by the precision of Python floats. [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) overcomes this by using Python integer types as representations of floats. Wondrously, Python `int`s have functionally no upper limit. 
 
 ### Language Model
 
