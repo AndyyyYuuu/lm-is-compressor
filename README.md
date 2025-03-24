@@ -70,7 +70,13 @@ Arithmetic coding works by mapping every possible sequence of symbols onto the n
 
 This diagram shows an arithmetic coding algorithm with three symbols: "Hello", "world", and "!". The black bars at the bottom represent the intervals on the number line that encode each of the specified messages. 
 
+It is important to note that any float within this interval is able to represent its message. The larger the interval, the more tolerence we have for the precision of this float. Thus, larger intervals correspond to less characters used to encode the message, while smaller intervals correspond to more characters. 
+
+One of the principles of data compression is that we want more frequently occuring symbols to use less characters after compression. We can thus assign larger intervals to more likely sequences by scaling our interval sizes with their corresponding probabilities. These probabilities can be computed with a language model. After the addition of a language model, our algorithm might look more like this: 
+
 <img width="855" alt="Arithmetic coding space with conditional distributions" src="https://github.com/user-attachments/assets/97b89225-4bf5-479e-b9c9-eadeba85595d" />
+
+As seen, sequences such as "Hello world !" are assigned much larger intervals than "! world !" and therefore shorter code length. Since "Hello world !" is much more likely, assigning it a shorter code length allows us to decrease the average length of our encoded files in the long run. 
 
 A simplified algorithm for arithmetic coding with conditional probabilities of each symbol is shown below. The loop encodes a list of items sequentially, narrowing down the interval until it is small enough to uniquely represent the string. 
 ```py
@@ -86,18 +92,19 @@ def encode(sequence: list, alphabet: list) -> float:
       new_start = start
 
       for i in range(location):
-          new_start += p_given(alphabet[i], sequence[:c]) * (end-start)
+          new_start += p_given(alphabet[i], sequence[:c]) * (end-start)  # scale down conditional probabilities based on current interval
       
       end = new_start + p_given(alphabet[location], sequence[:c]) * (end-start)
       start = new_start
-  return (start + end) / 2
+  return (start + end) / 2  # take the midpoint of the interval
 ```
-
+<!--
 The code length of arithmetic coding is exactly 
 
 $$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
 
 where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
+-->
 
 ## Implementation
 The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
