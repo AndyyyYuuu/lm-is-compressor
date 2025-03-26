@@ -1,6 +1,12 @@
-# Language Model-Based Text Compressor
 
-This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of around 20% on English natural language. Whether you're a novice programmer or experienced computer scientist, I hope you'll find this experiment interesting or informative (pun initially not intended). 
+<div align="center">
+  <h1>Language Model-Based Text Compression</h1>
+    <i>An accurate language model can be converted into a high-compression, lossless text compressor, and vice versa. </i><br><br>
+</div>
+
+
+
+This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I hope you'll find this experiment interesting or informative (pun initially not intended). 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -48,9 +54,9 @@ Before explaining data compression, we must first explain our measure of informa
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
-Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes, but LLM tokens in this project). In otherwords, $H(P) \times input \space file \space length \leq expected \space output \space file \space size$. 
+Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes/characters, but LLM tokens in this project). In otherwords, $H(P) \times input \space file \space length \leq expected \space output \space file \space size$. 
 
-Unfortunately, when it comes to compressing English text, we cannot know the true distribution $p$ of every possible sentence. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as cross-entropy: 
+Unfortunately, when it comes to compressing English text, we cannot know the true distribution $p$ of every possible sentence. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as **cross-entropy**: 
 
 $$H(P, P_\theta) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
 
@@ -160,8 +166,8 @@ I notice that the compression rate of ZIP seems to decrease as file size increas
 
 ---
 ## Credits
-
-- Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his mentorship and guidance throughout this project. 
+- Developed and written by [Andy S. Yu](https://github.com/AndyyyYuuu). 
+- Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his invaluable mentorship and guidance throughout this project. 
 - This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
 - This repository uses [GPT-2](https://huggingface.co/openai-community/gpt2) from Hugging Face. The model was originally introduced in "[Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)" by Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. 
 
