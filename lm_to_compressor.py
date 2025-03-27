@@ -1,17 +1,19 @@
 import transformers, torch, contextlib, importlib, math, os, re, shutil, time, argparse
 from tqdm import tqdm
+import models
 
 arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.arithmeticcoding")
 
 torch.set_default_dtype(torch.float64)
 
-model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
-tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
-model.eval()
+model = models.Llama3()
 
 ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
 CHUNK_SIZE = 1023
+
+def prob_to_freq(probs: torch.Tensor) -> torch.Tensor:
+	return torch.ceil(probs * SCALING_FACTOR).to(torch.int)
 
 def p_given(input_id, model, kv_cache=None):
 	input_id = input_id.unsqueeze(0)
@@ -40,16 +42,16 @@ def batch_p_given(condition, model):
 
 def compress(inp: list[int], bitout):
 
-	bos = torch.tensor([tokenizer.bos_token_id])
+	bos = torch.tensor([model.BOS_TOKEN])
 	inp = torch.cat((bos, inp))
-	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
+	initfreqs = arithmeticcoding.FlatFrequencyTable(model.ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	enc = arithmeticcoding.ArithmeticEncoder(32, bitout)
-	dists = batch_p_given(inp, model)
+	dists = prob_to_freq(model.batch_p_given(inp))
 
 	for i in tqdm(range(1, len(inp)), unit=" tokens", leave=False):
 		new_freqs = dists[i-1]
-		for j in range(ALPHABET_SIZE): 
+		for j in range(model.ALPHABET_SIZE): 
 			freqs.set(j, int(new_freqs[j].item()))
 
 		enc.write(freqs, inp[i].item())
@@ -58,18 +60,19 @@ def compress(inp: list[int], bitout):
 
 def decompress(inp, inp_length, out):
 	bitin = arithmeticcoding.BitInputStream(inp)
-	initfreqs = arithmeticcoding.FlatFrequencyTable(ALPHABET_SIZE)
+	initfreqs = arithmeticcoding.FlatFrequencyTable(model.ALPHABET_SIZE)
 	freqs = arithmeticcoding.SimpleFrequencyTable(initfreqs)
 	dec = arithmeticcoding.ArithmeticDecoder(32, bitin)
-	last_token = tokenizer.bos_token_id
+	last_token = model.BOS_TOKEN
 	tokens_count = 0
 	kv_cache = None
 	info_content = 0
 	with tqdm(total=inp_length, unit=" bits", leave=False) as progress:
 		while True: 
-			new_freqs, kv_cache = p_given(torch.tensor([last_token]), model, kv_cache)
+			probs, kv_cache = model.p_given(torch.tensor([last_token]), kv_cache)
+			new_freqs = prob_to_freq(probs)
 
-			for i in range(ALPHABET_SIZE): 
+			for i in range(model.ALPHABET_SIZE): 
 				freqs.set(i, int(new_freqs[i]))
 			# Decode and write one token
 			symbol = dec.read(freqs)
@@ -87,7 +90,7 @@ def decompress(inp, inp_length, out):
 			last_token = symbol
 			
 			# Iterate through characters, then bits
-			for c in tokenizer.decode(symbol): 
+			for c in model.detokenize(symbol): 
 				for i in range(8):
 					out.write((ord(c) >> (7 - i)) & 1)
 			out.output.flush()
@@ -96,7 +99,7 @@ def decompress(inp, inp_length, out):
 
 def compress_file(input_path, output_path): 
 	with open(input_path, "rb") as inp:
-		tokens = tokenizer.encode(inp.read().decode("utf-8"), return_tensors="pt")[0]
+		tokens = model.tokenize(inp)
 		chunks = torch.split(tokens, CHUNK_SIZE)
 		if os.path.exists(output_path):
 			shutil.rmtree(output_path)
