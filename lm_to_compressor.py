@@ -11,6 +11,7 @@ model = models.Llama3()
 ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
 CHUNK_SIZE = 1023
+#CHUNK_SIZE = model.CONTEXT_LENGTH-1
 
 def prob_to_freq(probs: torch.Tensor) -> torch.Tensor:
 	return torch.ceil(probs * SCALING_FACTOR).to(torch.int)
