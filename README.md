@@ -4,9 +4,7 @@
     <i>An accurate language model can be converted into a high-compression, lossless text compressor, and vice versa. </i><br><br>
 </div>
 
-
-
-This repository is a demonstration of using a language model to perform lossless compression on natural langage. It shows that the use of GPT-2 as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I hope you'll find this experiment interesting or informative (pun initially not intended). 
+This repository is a demonstration of using a language model to perform lossless compression on natural langage. In it, I show that the use of GPT-2 Small as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I also demonstrate that this compression rate can be improved through the use of more accurate language models. I hope you'll find this experiment interesting or informative (pun initially not intended). 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -14,8 +12,9 @@ This repository is a demonstration of using a language model to perform lossless
 > 3. [Arithmetic Coding](#arithmetic-coding)
 > 4. [Implementation](#implementation)
 > 5. [Experimental Results](#experimental-results)
-> 6. [Credits](#credits)
-> 7. [Further Reading](#further-reading)
+> 6. [Limitations & Further Experiments](#limitations--further-experiments)
+> 7. [Credits](#credits)
+> 8. [Further Reading](#further-reading)
 ---
 ## Run the Experiment
 ### Prerequisites
@@ -35,15 +34,21 @@ pip install -r requirements.txt
 ```
 Optionally, use a [virtual environment](https://gist.github.com/ryumada/c22133988fd1c22a66e4ed1b23eca233).
 ### Usage
-Run a compression experiment: 
+Compress a file: 
 ```bash
 python3 lm_to_compressor.py --compress {input text path} {output code path}
 ```
 
-Run a decompression experiment: 
+Decompress a file: 
 ```bash
 python3 lm_to_compressor.py --decompress {code path} {output text path}
 ```
+
+To calculate compression rate with optional [Weights & Biases](https://wandb.ai/) logging, modify settings in `testing.py`, then run: 
+```bash
+python3 testing.py
+```
+
 
 ---
 ## Theoretical Foundation
@@ -66,7 +71,7 @@ It also happens that cross-entropy is precisely the metric that is minimized in 
 
 ---
 
-# Arithmetic Coding
+## Arithmetic Coding
 
 Arithmetic coding is employed as the base algorithm to perform text compression. 
 
@@ -78,7 +83,7 @@ This diagram shows an arithmetic coding algorithm with three symbols: "Hello", "
 
 It is important to note that any float within this interval is able to represent its message. The larger the interval, the more tolerence we have for the precision of this float. Thus, larger intervals correspond to less characters used to encode the message, while smaller intervals correspond to more characters. 
 
-One of the principles of data compression is that we want more frequently occuring symbols to use less characters after compression. We can thus assign larger intervals to more likely sequences by scaling our interval sizes with their corresponding probabilities. These probabilities can be computed with a language model. After the addition of a language model, our algorithm might look more like this: 
+One of the principles of data compression is that we want more frequently occuring symbols to use less characters after compression. We can thus assign larger intervals to more likely sequences by **scaling our interval sizes with their corresponding probabilities**. These probabilities can be computed with a language model. After the addition of a language model, our algorithm might look more like this: 
 
 <img width="855" alt="Arithmetic coding space with conditional distributions" src="https://github.com/user-attachments/assets/97b89225-4bf5-479e-b9c9-eadeba85595d" />
 
@@ -112,6 +117,8 @@ $$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
 where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
 -->
 
+---
+
 ## Implementation
 The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
 
@@ -121,11 +128,9 @@ This project uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki
 
 ### Language Model
 
-This project uses [GPT-2 from `huggingface`](https://huggingface.co/openai-community/gpt2) to run its compressor. 
+This project primarily uses [GPT-2 from `huggingface`](https://huggingface.co/openai-community/gpt2) to run its compressor. 
 
-
-
-In the source code, the distributions of possible next tokens are computed for every token simultaneously by inputting the entire string into the LLM. 
+In the source code, the distributions of possible next tokens are computed for every token simultaneously by inputting the entire string into the LLM. An `<|endoftext|>` token is placed before the string to give the language model context upon which it builds the first character's distribution. 
 
 ### Chunk Processing
 GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 1023 tokens, one less than 1024 to make space for an extra `<|endoftext|>` token before each chunk. Each compressed chunk is placed in a `.bin` file inside a folder representing a compressed file. 
@@ -160,9 +165,21 @@ From the graph, we see that compression rate is around 20% for large text files.
 
 ![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/a82f7044-788e-4ab5-9b63-c028c9e064fc)
 
-For the natural language files in [`texts`](texts), GPT-2 arithmetic coding consistently outperforms ZIP in compression rate. It also outperforms the use of weaker models for arithmetic coding, providing evidence for our theoretical proof that a better language model does indeed correspond to a better text compressor. 
+For the natural language files in [`texts`](texts), GPT-2 Small arithmetic coding consistently outperforms ZIP in compression rate. It also far outperforms weaker language models, such as a static uniform distribution, on arithmetic coding. 
 
 I notice that the compression rate of ZIP seems to decrease as file size increases. I will run further tests on larger files. 
+
+![Compression Rates of GPT-2 Sizes](https://github.com/user-attachments/assets/1ca87b8e-2439-40bd-a38a-0c431ec6e267)
+
+I also compared the compression rates of GPT-2 [Small](https://huggingface.co/openai-community/gpt2), [Medium](https://huggingface.co/openai-community/gpt2-medium), and [Large](https://huggingface.co/openai-community/gpt2-large) models, finding that for the three sample texts, larger, more capable versions of the model always outperform their smaller counterparts. This is consistent with the [theory](#theoretical-foundation) hypothesizing a positive correlation between LM accuracy and file reduction. 
+
+---
+## Limitations & Further Experiments
+This data compressor is extremely slow. Arithmetic coding is a major efficiency bottleneck for each run. A possible solution is to integrate my Python code with arithmetic coding written in C. 
+
+Because of this issue, the 3 texts I used for this experiment are very small on the scale of data compression, as larger texts would simply take too long. The models I used also needed to be small enough to run locally on my MacBook without crashing it. 
+
+I invite any readers with sufficient time / hardware to try running this with larger models or datasets. 
 
 ---
 ## Credits
