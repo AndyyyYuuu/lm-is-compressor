@@ -1,7 +1,7 @@
 import subprocess, os
 
-TEXT = "paper"
-DO_WANDB = True
+TEXT = "sentence"
+DO_WANDB = False
 
 if DO_WANDB: 
     try: 
