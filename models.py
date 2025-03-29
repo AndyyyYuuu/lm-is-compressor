@@ -44,13 +44,7 @@ class LMWrapper(ABC):
 
         return prob, kv_cache
 
-
 class GPT2(LMWrapper): 
-    
-    def __init__(self):
-        self.model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
-        self.tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
-        self.model.eval()
     
     @property
     def BOS_TOKEN(self): 
@@ -63,6 +57,30 @@ class GPT2(LMWrapper):
     @property
     def CONTEXT_LENGTH(self): 
         return 1024
+
+
+class GPT2Small(GPT2): 
+    
+    def __init__(self):
+        self.model = transformers.GPT2LMHeadModel.from_pretrained("gpt2")
+        self.tokenizer = transformers.GPT2Tokenizer.from_pretrained("gpt2")
+        self.model.eval()
+
+
+class GPT2Medium(GPT2): 
+    
+    def __init__(self):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained("openai-community/gpt2-medium")
+        self.model = transformers.AutoModelForCausalLM.from_pretrained("openai-community/gpt2-medium")
+        self.model.eval()
+
+
+class GPT2Large(GPT2): 
+    
+    def __init__(self):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained("openai-community/gpt2-large")
+        self.model = transformers.AutoModelForCausalLM.from_pretrained("openai-community/gpt2-large")
+        self.model.eval()
 
 
 class Llama3(LMWrapper): 

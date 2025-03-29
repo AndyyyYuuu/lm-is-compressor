@@ -6,7 +6,7 @@ arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.a
 
 torch.set_default_dtype(torch.float64)
 
-model = models.Llama3()
+model = models.GPT2Medium()
 
 ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
