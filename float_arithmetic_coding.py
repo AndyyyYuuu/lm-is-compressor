@@ -1,6 +1,5 @@
 from mpmath import mp 
 import mpmath, math
-from utils import load_text
 from distribution import Distribution, DistFromModel
 
 # Uniform distribution
@@ -65,7 +64,7 @@ distribution = DistFromModel("modelling/hemingway.pth")
 #print(decode(mp.mpf("0.739552692427511692180069615447330809960907787386281026127356076143241967236"), distribution))
 #exit(0)
 
-string = load_text("sentence").lower()
+string = "you've got to dig it to dig it, you dig?"
 print(f"Original: \"\"\"\n{string}\n\"\"\"")
 #alphabet = list("\n\40!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~") + ["<END>"]
 
