@@ -1,10 +1,10 @@
 
 <div align="center">
   <h1>Language Model-Based Text Compression</h1>
-    <i>An accurate language model can be converted into a high-compression, lossless text compressor, and vice versa. </i><br><br>
+    <i>An accurate language model can be converted into a high-compression, lossless text compressor. </i><br><br>
 </div>
 
-This repository is a demonstration of using a language model to perform lossless compression on natural langage. In it, I show that the use of GPT-2 Small as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I also demonstrate that this compression rate can be improved through the use of more accurate language models. I hope you'll find this experiment interesting or informative (pun initially not intended). 
+This repository is a demonstration of using a language model to perform lossless compression on natural language through some of the methods laid out by [Delétang et al. 2023](https://arxiv.org/abs/2309.10668). In it, I show that the use of GPT-2 Small as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I also show that this compression rate can be improved through the use of more accurate language models. I hope you'll find this experiment interesting. 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -52,16 +52,15 @@ python3 testing.py
 
 ---
 ## Theoretical Foundation
+With a piece of somewhat informal proof, we can show that better language models can indeed lead to smaller compressed files. 
 
-Before explaining data compression, we must first explain our measure of information. i.e. How much of a text file is redundant, compressible data, and how much of it is essential. 
-
-**Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents of possible events. 
+Let us first explain the fundementals. **Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents of possible events. 
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
-Shannon entropy defines the theoretical lower bound of the size of the compressed file, per unit of the uncompressed file (oftentimes bytes/characters, but LLM tokens in this project). In otherwords, $H(P) \times input \space file \space length \leq expected \space output \space file \space size$. 
+When $P(x)$ defines a distribution with varying probabilities for every possible text, the entropy $H(P)$ defines the minimum number of bits needed to compress it. Entropy can also be interpreted as the unpredictability of a data source. If $P$ has more possible outcomes or contains less skewed probabilities (e.g. 50%-50% as opposed to 90%-10%), entropy increases, and more bits are required, on average, to compress its outcomes. 
 
-Unfortunately, when it comes to compressing English text, we cannot know the true distribution $p$ of every possible sentence. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as **cross-entropy**: 
+Unfortunately, when it comes to compressing English text, we cannot know the true distribution $P$ of every possible text. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as **cross-entropy**: 
 
 $$H(P, P_\theta) = -\sum_x{P(x)log_2{P_\theta(x)}}$$
 
@@ -126,29 +125,34 @@ The following section details the methods used to achieve the aforementioned tas
 
 This project uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding. The above algorithm is heavily constrained by the precision of Python floats. [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) overcomes this by using Python integer types as representations of floats. Wondrously, Python `int`s have functionally no upper limit. 
 
-### Language Model
+### Language Models
 
-This project primarily uses [GPT-2 from `huggingface`](https://huggingface.co/openai-community/gpt2) to run its compressor. 
+I primarily used [GPT-2 Small](https://huggingface.co/openai-community/gpt2) to run this compressor, but other models from Hugging Face have been tested as well. They are listed below: 
+- [GPT-2 Small](https://huggingface.co/openai-community/gpt2) (124M parameters)
+- [GPT-2 Medium](https://huggingface.co/openai-community/gpt2-medium) (355M parameters)
+- [GPT-2 Large](https://huggingface.co/openai-community/gpt2-large) (774M parameters)
+- [Llama 3.2](https://huggingface.co/meta-llama/Llama-3.2-1B) (1B parameters)
+- [Llama 3.2](https://huggingface.co/meta-llama/Llama-3.2-3B) (3B parameters)
 
-In the source code, the distributions of possible next tokens are computed for every token simultaneously by inputting the entire string into the LLM. An `<|endoftext|>` token is placed before the string to give the language model context upon which it builds the first character's distribution. 
+In the source code, the distributions of possible next tokens are computed for every token simultaneously by inputting the entire string into the LLM. A BOS (Beginning of Text) token is placed before the string to give the language model context upon which it builds the first character's distribution. 
 
 ### Chunk Processing
-GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 1023 tokens, one less than 1024 to make space for an extra `<|endoftext|>` token before each chunk. Each compressed chunk is placed in a `.bin` file inside a folder representing a compressed file. 
+GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 1023 tokens, one less than 1024 to make space for an extra BOS token before each chunk. Each compressed chunk is placed in a `.bin` file inside a folder representing a compressed file. 
 
-While the splitting of input text definitely decreases the capabilities of the language model by limiting its context, 
+Llama 3.2 has a ridiculous context length of 128K tokens. For consistency's sake, I used the same chunking scheme of 1024 tokens for it. 
 
-An alternative solution would have been to implement a 1024-token moving window, ensuring the LLM always has 1024 tokens of context to work with. Unfortunately, the aforementioned batch inference would not have been possible with this solution. 
+While the splitting of input text definitely decreases the capabilities of the language model by limiting its context, it significantly increases its efficiency. An alternative solution would have been to implement a 1024-token moving window, ensuring the LLM always has 1024 tokens of context to work with. Unfortunately, the aforementioned batch inference would not have been possible with this solution. 
 
 ### KV-Caching
-KV-caching was used to accelerate language model inference. 
+KV-caching was used to accelerate language model inference in the decompression process, where the distribution of the next token was iteratively computed until the entire sequence was restored. 
 
-In a transformer, the three numbers key (K), query (Q), and value (V) are computed for each input token. K and V are 
+In a transformer, the three values key (K), query (Q), and value (V) are computed for each input token. K and V are fixed for each token at their specific position. Therefore, if we have already computed the distribution for the next token of "Hello my name", we no longer need to do as much work for "Hello my name is" as the KV for the first 3 words had already been computed. With my models, this is done by getting the `.past_key_values` attribute from language model outputs and then plugging it back into the model's `past_key_values` parameter for the next iteration. 
 
-Given a chunk size of 2048 characters, the addition of KV-caching can decrease inference time by around 80%. 
+The addition of KV-caching can decrease inference time significantly: 
 
 <img width="700" alt="kv_cache_effects" src="https://github.com/user-attachments/assets/c13198ae-22db-4f3d-8048-a8e56f8cf720" />
 
-As seen from the graph, the algorithm without KV-caching experiences a linear increase in decoding time per token. The number of tokens for the language model to process increases for every additional token until the decoder moves on to the next chunk of data. On the other hand, KV-caching allows each inference to be performed in a relatively fixed amount of time. 
+As seen from the graph, the algorithm without KV-caching experiences a linear increase in decoding time per token. The number of tokens for the language model to process increases for every additional token until the decoder moves on to the next chunk of data. On the other hand, KV-caching allows each inference to be performed in a relatively fixed amount of time by only computing the K and V for the last token added every iteration. 
 
 ---
 ## Experimental Results
@@ -171,7 +175,7 @@ I notice that the compression rate of ZIP seems to decrease as file size increas
 
 ![Compression Rates of GPT-2 Sizes](https://github.com/user-attachments/assets/1ca87b8e-2439-40bd-a38a-0c431ec6e267)
 
-I also compared the compression rates of GPT-2 [Small](https://huggingface.co/openai-community/gpt2), [Medium](https://huggingface.co/openai-community/gpt2-medium), and [Large](https://huggingface.co/openai-community/gpt2-large) models, finding that for the three sample texts, larger, more capable versions of the model always outperform their smaller counterparts. This is consistent with the [theory](#theoretical-foundation) hypothesizing a positive correlation between LM accuracy and file reduction. 
+I also compared the compression rates of GPT-2 [Small](https://huggingface.co/openai-community/gpt2), [Medium](https://huggingface.co/openai-community/gpt2-medium), and [Large](https://huggingface.co/openai-community/gpt2-large) models, finding that for the three sample texts, larger, more capable versions of the model always outperform their smaller counterparts. This is consistent with the [heuristic proof](#theoretical-foundation) showing a positive correlation between LM accuracy and file reduction. 
 
 ---
 ## Limitations & Further Experiments
@@ -184,13 +188,14 @@ I invite any readers with sufficient time / hardware to try running this with la
 ---
 ## Credits
 - Developed and written by [Andy S. Yu](https://github.com/AndyyyYuuu). 
-- Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his invaluable mentorship and guidance throughout this project. 
+- Massive thanks to [Qihang Zhang](https://github.com/Qihang-Zhang) for his invaluable mentorship and guidance throughout this project.
+- This project was essentially a replicate of some of the experiments and methods performed in [Language Modeling is Compression](https://arxiv.org/abs/2309.10668) by Delétang et al.
 - This repository uses [nayuki/Reference-arithmetic-coding](https://github.com/nayuki/Reference-arithmetic-coding) to perform arithmetic coding.
-- This repository uses [GPT-2](https://huggingface.co/openai-community/gpt2) from Hugging Face. The model was originally introduced in "[Language Models are Unsupervised Multitask Learners](https://cdn.openai.com/better-language-models/language_models_are_unsupervised_multitask_learners.pdf)" by Alec Radford, Jeff Wu, Rewon Child, David Luan, Dario Amodei, and Ilya Sutskever. 
+- This repository uses models from Hugging Face: [GPT-2 Small](https://huggingface.co/openai-community/gpt2), [GPT-2 Medium](https://huggingface.co/openai-community/gpt2-medium), [GPT-2 Large](https://huggingface.co/openai-community/gpt2-large), [Llama 3.2 1B](https://huggingface.co/meta-llama/Llama-3.2-1B), and [Llama 3.2 3B](https://huggingface.co/meta-llama/Llama-3.2-3B).
 
 ---
 ## Further Reading
-- **[Language Modeling is Compression](https://arxiv.org/abs/2309.10668) by Delétang et al.**  
+- **[Language Modeling is Compression](https://arxiv.org/abs/2309.10668) by Grégoire Delétang et al.**  
   - Experiments with the use of language models in text, image, and audio compression through similar methods as the ones used in this repository. Also shows that a compressor can be used to build a conditional generative model. 
 - **[The Mathematical Theory of Communication](https://pure.mpg.de/rest/items/item_2383164_3/component/file_2383163/content) by Claude E. Shannon and Warren Weaver**
   - Recommend reading Warren Weaver's overview of Shannon's theory. 
