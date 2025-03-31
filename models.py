@@ -30,8 +30,8 @@ class LMWrapper(ABC):
 
         with torch.no_grad():
             outputs = self.model(input_ids)
-        
-        prob = torch.softmax(outputs.logits.squeeze(0), dim=-1)
+        logits = outputs.logits.squeeze(0)[:,:self.ALPHABET_SIZE]
+        prob = torch.softmax(logits, dim=-1)
         return prob
 
     def p_given(self, input_id, kv_cache=None) -> torch.Tensor:
@@ -39,8 +39,8 @@ class LMWrapper(ABC):
         with torch.no_grad():
             outputs = self.model(input_id, past_key_values=kv_cache, use_cache=True)
             kv_cache = outputs.past_key_values
-
-        prob = torch.softmax(outputs.logits[0, -1], dim=-1)
+        logits = outputs.logits[0, -1][:,:self.ALPHABET_SIZE]
+        prob = torch.softmax(logits, dim=-1)
 
         return prob, kv_cache
 
@@ -83,12 +83,7 @@ class GPT2Large(GPT2):
         self.model.eval()
 
 
-class Llama3(LMWrapper): 
-    
-    def __init__(self):
-        self.tokenizer = transformers.AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-3B")
-        self.model = transformers.AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-3B")
-        self.model.eval()
+class Llama32(LMWrapper): 
     
     @property
     def BOS_TOKEN(self): 
@@ -96,8 +91,20 @@ class Llama3(LMWrapper):
     
     @property
     def ALPHABET_SIZE(self):
-        return 128256
+        return self.tokenizer.vocab_size + 1
     
     @property
     def CONTEXT_LENGTH(self): 
         return 128000
+
+class Llama32_1B(Llama32):
+    def __init__(self):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-1B")
+        self.model = transformers.AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-1B")
+        self.model.eval()
+
+class Llama32_3B(Llama32):
+    def __init__(self):
+        self.tokenizer = transformers.AutoTokenizer.from_pretrained("meta-llama/Llama-3.2-3B")
+        self.model = transformers.AutoModelForCausalLM.from_pretrained("meta-llama/Llama-3.2-3B")
+        self.model.eval()

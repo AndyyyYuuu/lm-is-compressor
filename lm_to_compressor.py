@@ -6,12 +6,10 @@ arithmeticcoding = importlib.import_module("Reference-arithmetic-coding.python.a
 
 torch.set_default_dtype(torch.float64)
 
-model = models.GPT2Medium()
+model = models.GPT2Small()
 
-ALPHABET_SIZE = 50257
 SCALING_FACTOR = 10000
 CHUNK_SIZE = 1023
-#CHUNK_SIZE = model.CONTEXT_LENGTH-1
 
 def prob_to_freq(probs: torch.Tensor) -> torch.Tensor:
 	return torch.ceil(probs * SCALING_FACTOR).to(torch.int)
