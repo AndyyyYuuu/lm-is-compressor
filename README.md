@@ -54,11 +54,11 @@ python3 testing.py
 ## Theoretical Foundation
 With a piece of somewhat informal proof, we can show that better language models can indeed lead to smaller compressed files. 
 
-Let us first explain the fundementals. **Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents of possible events. 
+Let us first explain the fundementals. **Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents $-log_2{P(X)} of possible events. 
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
-When $P(x)$ defines a distribution with varying probabilities for every possible text, the entropy $H(P)$ defines the minimum number of bits needed to compress it. Entropy can also be interpreted as the unpredictability of a data source. If $P$ has more possible outcomes or contains less skewed probabilities (e.g. 50%-50% as opposed to 90%-10%), entropy increases, and more bits are required, on average, to compress its outcomes. 
+In our context, when $P(x)$ defines a distribution with varying probabilities for every possible text file, the entropy $H(P)$ defines the minimum number of bits needed to compress it. Entropy can also be interpreted as the unpredictability of a data source. If $P$ has more possible outcomes or contains less skewed probabilities (e.g. 50%-50% as opposed to 90%-10%), entropy increases, and more bits are required, on average, to compress its outcomes. 
 
 Unfortunately, when it comes to compressing English text, we cannot know the true distribution $P$ of every possible text. Instead, we might use a distribution $P_\theta$ as a way to estimate $P$. We can update the lower bound for the length of our compressed file to the following, known as **cross-entropy**: 
 
@@ -108,13 +108,12 @@ def encode(sequence: list, alphabet: list) -> float:
       start = new_start
   return (start + end) / 2  # take the midpoint of the interval
 ```
-<!--
-The code length of arithmetic coding is exactly 
+
+Here's something else cool. The code length of arithmetic coding is exactly 
 
 $$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
 
-where $P_i(x)$ is the conditional probability of token $i$ given by the language model. 
--->
+where $P_i(x)$ is the conditional probability of token $i$ given by the language model. We can now deduct the exact length of our output. In the decoding process, knowing the output length ensures that we can stop the decoder before exceeding the original precision the file was encoded in. 
 
 ---
 
