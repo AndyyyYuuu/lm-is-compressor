@@ -4,7 +4,7 @@
     <i>An accurate language model can be converted into a high-compression, lossless text compressor. </i><br><br>
 </div>
 
-This repository is a demonstration of using a language model to perform lossless compression on natural language through some of the methods laid out by [Delétang et al. 2023](https://arxiv.org/abs/2309.10668). In it, I show that the use of GPT-2 Small as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve a compression rate of **around 20%** on English natural language. I also show that this compression rate can be improved through the use of more accurate language models. I hope you'll find this experiment interesting. 
+This repository is a demonstration of using a language model to perform lossless compression on natural language through some of the methods laid out by [Delétang et al. 2023](https://arxiv.org/abs/2309.10668). In it, I show that the use of GPT-2 models as part of an arithmetic coding algorithm, albeit extremely slow to run, can achieve compression rates of **< 20%** on English natural language. I also show that this compression rate can be improved through the use of more accurate language models. I hope you'll find this experiment interesting. 
 
 > ## Table of Contents
 > 1. [Run the Experiment](#run-the-experiment)
@@ -157,7 +157,7 @@ As seen from the graph, the algorithm without KV-caching experiences a linear in
 ## Experimental Results
 These experiments on my data compressor were run using the files in [`texts`](texts). I used [Weights & Biases](wandb.org) and Google Sheets to log and create graphs for my results. 
 ### Compression Rate for Natural Language
-I tested the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code. 
+I initially used GPT-2 Small to test the compression rates of 4 text files of varying size. See [`testing.py`](testing.py) for testing code. 
 
 <img width="500" alt="Compression Rates on Various Natural Language Texts" src="https://github.com/user-attachments/assets/54a26c37-3243-4a08-8abd-a19d9800f5aa" />
 
@@ -166,13 +166,13 @@ From the graph, we see that compression rate is around 20% for large text files.
 
 ### Comparison With Other Methods & Models
 
-![Compression Rates of Various Methods for Email, Article, and Paper](https://github.com/user-attachments/assets/a82f7044-788e-4ab5-9b63-c028c9e064fc)
+![Compression Rates of Various Methods](https://github.com/user-attachments/assets/84a0418f-84e9-402c-81e3-fab026c4f9f5)
 
 For the natural language files in [`texts`](texts), GPT-2 Small arithmetic coding consistently outperforms ZIP in compression rate. It also far outperforms weaker language models, such as a static uniform distribution, on arithmetic coding. 
 
 I notice that the compression rate of ZIP seems to decrease as file size increases. I will run further tests on larger files. 
 
-![Compression Rates of GPT-2 Sizes](https://github.com/user-attachments/assets/1ca87b8e-2439-40bd-a38a-0c431ec6e267)
+![Compression Rates of GPT-2 Sizes](https://github.com/user-attachments/assets/d0ef2e64-e3c5-4101-bcc8-23643bfac933)
 
 I also compared the compression rates of GPT-2 [Small](https://huggingface.co/openai-community/gpt2), [Medium](https://huggingface.co/openai-community/gpt2-medium), and [Large](https://huggingface.co/openai-community/gpt2-large) models, finding that for the three sample texts, larger, more capable versions of the model always outperform their smaller counterparts. This is consistent with the [heuristic proof](#theoretical-foundation) showing a positive correlation between LM accuracy and file reduction. 
 
