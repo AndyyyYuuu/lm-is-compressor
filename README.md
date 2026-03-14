@@ -54,7 +54,7 @@ python3 testing.py
 ## Theoretical Foundation
 With a piece of somewhat informal proof, we can show that better language models can indeed lead to smaller compressed files. 
 
-Let us first explain the fundementals. **Shannon entropy**, or expected information content, of a distribution is given by taking the expected value of all the information contents $-log_2{P(X)} of possible events. 
+Let us first explain the fundementals. **Shannon entropy**, or expected information content, of a probability distribution is given by taking the expected value of all the information contents $-log_2{P(X)}$ of possible events. 
 
 $$H(P) = -\sum_x{P(x)log_2{P(x)}}$$
 
