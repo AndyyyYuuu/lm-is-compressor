@@ -113,12 +113,12 @@ Here's something else cool. The code length of arithmetic coding is exactly
 
 $$\lceil -\sum_i{log_2{P_i(x)}} \rceil$$
 
-where $P_i(x)$ is the conditional probability of token $i$ given by the language model. We can now deduct the exact length of our output. In the decoding process, knowing the output length ensures that we can stop the decoder before exceeding the original precision the file was encoded in. 
+where $P_i(x)$ is the conditional probability of token $i$ given by the language model. We can now deduce the exact length of our output. In the decoding process, knowing the output length ensures that we can stop the decoder before exceeding the original precision the file was encoded in. 
 
 ---
 
 ## Implementation
-The following section details the methods used to achieve the aforementioned task of converting a language model into a data compressor. 
+The following section details some methods I used to achieve the aforementioned task of converting a language model into a data compressor. 
 
 ### Arithmetic Coding
 
@@ -138,7 +138,7 @@ In the source code, the distributions of possible next tokens are computed for e
 ### Chunk Processing
 GPT-2 has a limited context length and will throw an error if you attempt to calculate distributions for sequences longer than 1024 tokens. Therefore, I split longer text files into chunks of 1023 tokens, one less than 1024 to make space for an extra BOS token before each chunk. Each compressed chunk is placed in a `.bin` file inside a folder representing a compressed file. 
 
-Llama 3.2 has a ridiculous context length of 128K tokens. For consistency's sake, I used the same chunking scheme of 1024 tokens for it. 
+Llama 3.2 has a context length of 128K tokens, but for consistency's sake, I used the same chunking scheme of 1024 tokens across all models. 
 
 While the splitting of input text definitely decreases the capabilities of the language model by limiting its context, it significantly increases its efficiency. An alternative solution would have been to implement a 1024-token moving window, ensuring the LLM always has 1024 tokens of context to work with. Unfortunately, the aforementioned batch inference would not have been possible with this solution. 
 
