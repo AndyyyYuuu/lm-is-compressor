@@ -200,4 +200,6 @@ I invite any readers with sufficient time / hardware to try running this with la
   - Recommend reading Warren Weaver's overview of Shannon's theory. 
 - **[Elements of Information Theory](https://cs-114.org/wp-content/uploads/2015/01/Elements_of_Information_Theory_Elements.pdf) by Joy A. Thomas and Thomas M. Cover**
   - Chapter 1 describes the foundational concept of Shannon entropy and its variations. 
-  - Chapter 5 outlines the information theory of data compression, including a derivation of Shannon entropy. 
+  - Chapter 5 outlines the information theory of data compression, including a derivation of Shannon entropy.
+- **[Compression & Intelligence (YouTube)](https://www.youtube.com/watch?v=l6DKRf-fAAM) by 3Blue1Brown**
+  - 3Blue1Brown video about this just dropped! This video explains a lot of the core concepts in this project around information theory, intelligence, and compression, accompanied by great visuals. 
